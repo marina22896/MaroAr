@@ -1,127 +1,22 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>WebAR — Play Video on Image Target (MindAR + A-Frame)</title>
-  <!-- A-Frame -->
-  <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
-  <!-- mindar-image-aframe (Image tracking) -->
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.7/dist/mindar-image-aframe.prod.js"></script>
-  <style>
-    body, html { margin: 0; height: 100%; }
-    #container { width: 100%; height: 100vh; overflow: hidden; }
-    .controls { position: absolute; left: 12px; top: 12px; z-index: 10; background: rgba(0,0,0,0.4); color: #fff; padding: 8px; border-radius: 6px; font-family: sans-serif; }
-  </style>
-</head>
-<body>
-  <div id="container">
-    <div class="controls">
-      <div>WebAR — scan the printed/real image target to play the video.</div>
-      <div style="font-size:12px; margin-top:6px; opacity:0.9">Tip: host files on HTTPS and open the page from mobile for best results.</div>
-    </div>
 
-    <!-- A-Frame + MindAR scene -->
-    <!-- Replace "targets.mind" with the path to your compiled image target file (see instructions below) -->
-    <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; maxTrack: 1; uiLoading: no; uiScanning: no; uiError: no"
-      embedded
-      color-space="sRGB"
-      renderer="antialias: true; alpha: true"
-      vr-mode-ui="enabled: false">
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  </head>
+  <body>
+    <a-scene mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+      <a-assets>
+        <img id="card" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" />
+        <a-asset-item id="avatarModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/softmind/scene.gltf"></a-asset-item>
+      </a-assets>
 
-      <!-- Camera -->
-      <a-entity camera></a-entity>
-
-      <!-- Video element placed in the DOM. Important attributes for autoplay on mobile: muted, playsinline -->
-      <video id="my-video" src="./video.mp4" loop muted playsinline webkit-playsinline crossOrigin="anonymous" style="display:none"></video>
-
-      <!-- Anchor for the first target (targetIndex="0"). When the image is detected, the content inside this entity is shown. -->
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       <a-entity mindar-image-target="targetIndex: 0">
-
-        <!-- Use a plane to display the video. We attach the video as texture to a plane. -->
-        <a-plane id="video-plane" position="0 0 0" rotation="-90 0 0" width="1" height="0.6" material="shader: flat; src: #my-video; transparent: true"></a-plane>
-
-        <!-- Optional: a scaled 3D card behind the video so it looks nicer when playing -->
-        <a-box position="0 -0.001 0" rotation="-90 0 0" width="1.02" height="0.62" depth="0.01" material="color: #000; opacity: 0.3"></a-box>
-
+        <a-plane src="#card" position="0 0 0" height="0.552" width="1" rotation="0 0 0"></a-plane>
+        <a-gltf-model rotation="0 0 0 " position="0 0 0.1" scale="0.005 0.005 0.005" src="#avatarModel" animation="property: position; to: 0 0.1 0.1; dur: 1000; easing: easeInOutQuad; loop: true; dir: alternate">
       </a-entity>
-
-      <!-- Light (not strictly necessary for the flat video plane) -->
-      <a-ambient-light intensity="1"></a-ambient-light>
-
     </a-scene>
-  </div>
-
-  <script>
-    // Small helper that sets up play/pause when the target is found/lost
-    document.addEventListener("DOMContentLoaded", () => {
-      const video = document.getElementById('my-video');
-      const scene = document.querySelector('a-scene');
-
-      // MindAR exposes events on the a-scene element
-      scene.addEventListener('renderstart', () => {
-        console.log('AR scene started');
-      });
-
-      // targetFound / targetLost events come from mindar-image-target entities
-      const target = document.querySelector('[mindar-image-target]');
-
-      target.addEventListener('targetFound', async (e) => {
-        console.log('targetFound', e);
-        try {
-          // attempt to play the video. Many browsers require a direct user gesture to start audio —
-          // we keep the video muted to allow autoplay.
-          await video.play();
-        } catch (err) {
-          // If autoplay is blocked, you can show a play button to the user (not included here)
-          console.warn('video play failed', err);
-        }
-      });
-
-      target.addEventListener('targetLost', (e) => {
-        console.log('targetLost', e);
-        // Pause the video to save bandwidth
-        video.pause();
-        video.currentTime = 0;
-      });
-    });
-  </script>
-
-  <!--
-    -----------------------
-    Instructions / Notes
-    -----------------------
-    1) Generating the image target (.mind):
-       - MindAR requires you to convert your reference image into a .mind file (binary index of features).
-       - The official tool is the mindar-js tools (target generation). Example (Node.js):
-
-         npm i -g mindarjs-image-target-tools
-         mindarjs-tg ./myReferenceImage.jpg --outputDir ./targets
-
-       - That will produce targets.mind and a thumbnail. Place targets.mind next to this HTML or edit the path in the `mindar-image` attribute.
-
-    2) Video hosting & formats:
-       - Use a reasonably compressed MP4 (H.264 baseline profile) for best device compatibility.
-       - Keep video muted (or user will need a gesture to enable audio). Use playsinline and webkit-playsinline attributes.
-
-    3) Autoplay policies:
-       - Many mobile browsers block autoplay with audio. Keeping the video muted and using playsinline allows autoplay.
-       - If you need sound, show a UI button that the user taps to unmute after the video started.
-
-    4) Testing on mobile:
-       - Host the page on HTTPS (many mobile browsers require camera permission only on secure contexts).
-       - Open the page on your phone browser, grant camera permission, and point at the printed/onscreen reference image.
-
-    5) Alternative libraries:
-       - If you prefer WebAR without pre-processing targets, you can look at AR.js (A-Frame) using NFT markers OR use commercial SDKs (8th Wall, ZapWorks) that simplify setup but are paid.
-
-    6) Troubleshooting:
-       - If detection fails: ensure the printed image is well lit, has high contrast, and not too glossy.
-       - Keep the printed image size reasonably large (e.g., at least 10 cm on the longest side) for robust tracking.
-
-    7) License & attribution:
-       - MindAR is open-source (check its license). If you use other services, respect their license.
-  -->
-</body>
+  </body>
 </html>
